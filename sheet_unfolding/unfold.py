@@ -1,22 +1,9 @@
-from .cpy_unfolding import cpy_unfold
 import numpy as np
 
-def tesselation2d(ngrid):
-    """Returns triangles (Delaunay) tesselating a uniform grid of ngrid x ngrid particles"""
-    i0 = np.arange(ngrid*ngrid).reshape(ngrid,ngrid)
-    ileft = np.roll(i0, 1, axis=0)
-    iright = np.roll(i0, -1, axis=0)
-    iup = np.roll(i0, 1, axis=1)
-    idown = np.roll(i0, -1, axis=1)
+from .cpy_unfolding import cpy_unfold
+from .math import tesselation2d
 
-    tri1 = np.stack((i0, iright, idown), axis=-1).reshape(-1,3)
-    tri2 = np.stack((i0, ileft, iup), axis=-1).reshape(-1,3)
-
-    triangles = np.concatenate((tri1, tri2), axis=0)
-    
-    return triangles
-
-def unfold2d(pos, L, mass=1., mode=None, simp=None, idptr=None):
+def unfold2d(pos, L, mass=1., mode=None, simp=None, idptr=None, output_flat=True):
     assert pos.shape[-1] == 2
     
     pos_in = np.float32(pos.reshape(-1,2))
@@ -37,6 +24,11 @@ def unfold2d(pos, L, mass=1., mode=None, simp=None, idptr=None):
     else:
         idptr_in = np.int64(idptr)
 
-    pos, mass, tri, idptr = cpy_unfold(mode, L, pos_in, mass_in, simp_in, idptr_in)
+    pos_out, mass_out, tri_out, idptr_out = cpy_unfold(mode, L, pos_in, mass_in, simp_in, idptr_in)
     
-    return pos, mass, tri, idptr
+    tri_out = tri_out[np.min(tri_out, axis=-1) >= 0]
+    
+    if output_flat:
+        return pos_out, mass_out, tri_out, idptr_out
+    else:
+        return pos_out.reshape(pos.shape), mass_out.reshape(pos.shape[:-1]), tri, idptr.reshape(pos.shape[:-1])
