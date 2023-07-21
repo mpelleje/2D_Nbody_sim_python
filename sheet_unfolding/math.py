@@ -70,3 +70,62 @@ def uniform_grid_nd(npix, L=1., endpoint=False):
     q = np.stack(np.meshgrid(*ardim, indexing="ij"), axis=-1)
 
     return q
+
+def massive_segments(mass, tri, pos=None, maxsize=None, forplot=False):
+    """Finds all the line segments connecting two particles with m > m0
+    
+    This can be used to find the backbone of the Cosmic Web
+    """
+    m0 = np.min(mass[mass > 0.])
+    
+    tritype = np.sum((mass.flat[tri] > m0) & (tri >= 0), axis=-1)
+    
+    lineseg = tri[tritype == 2]
+    sort = np.argsort(mass.flat[lineseg], axis=-1)[...,::-1]
+    lineseg = np.take_along_axis(lineseg, sort[...,0:2], axis=-1)
+    lineseg = np.sort(lineseg, axis=-1)
+    if len(lineseg) == 0:
+        return [],[]
+    lineseg = np.unique(lineseg, axis=0)
+    
+    if maxsize is not None:
+        r = np.linalg.norm(pos.reshape(-1,2)[lineseg[:,1]] - pos.reshape(-1,2)[lineseg[:,0]], axis=-1)
+
+        lineseg = lineseg[r < maxsize]
+    
+    if forplot:
+        x, y = [],[]
+        for l in lineseg:
+            x.extend([pos[l[0],0], pos[l[1],0], None])
+            y.extend([pos[l[0],1], pos[l[1],1], None])
+        return x,y
+    else:
+        return lineseg
+    
+def stick_through_idptr(idptr, pos, vel=None, mass=None, L=None, contract_idptr=True):
+    """Given a distribution of particles and a stickiness relation defined through idptr
+    creates the positions, (velocities) and masses of the sticked particles"""
+    if contract_idptr:
+        while(np.any(idptr != idptr[idptr])):
+            idptr = idptr[idptr]
+    
+    if mass is None:
+        mass = np.ones(pos.shape[:-1])
+    npart = mass.size
+    mstick = np.bincount(idptr, weights=mass.flat, minlength=npart)
+    velstick = np.zeros_like(vel)
+    posstick = np.zeros_like(pos)
+    
+    dx = wrap(pos.reshape(npart,-1) - pos.reshape(npart,-1)[idptr], L)
+    for i in range(0,pos.shape[-1]):
+        if vel is not None:
+            pstick = np.bincount(idptr, weights=mass.flatten()*vel[...,i].flatten(), minlength=npart)
+            velstick[...,i].flat = pstick / np.clip(mstick, 1e-10, None)
+        
+        dx_m = np.bincount(idptr, weights=mass.flatten()*dx[...,i].flatten(), minlength=npart)
+        posstick[...,i].flat = pos[...,i].flat + dx_m / np.clip(mstick, 1e-10, None)
+    
+    if vel is not None:
+        return posstick, velstick, mstick.reshape(mass.shape)
+    else:
+        return posstick, mstick.reshape(mass.shape)

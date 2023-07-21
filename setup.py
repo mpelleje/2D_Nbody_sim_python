@@ -13,6 +13,6 @@ setup(
     author="Jens Stücker",
     author_email="jstuecker@dipc.org",
     ext_modules=[module],
-    packages=["sheet_unfolding"],
+    packages=["sheet_unfolding", "sheet_unfolding/sim"],
     version="0.1.0"
 )
