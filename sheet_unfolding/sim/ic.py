@@ -175,7 +175,7 @@ class IC2DCosmo():
             self.norm = self.norm_num * L**2 / ngrid**2
         else:
             self.norm = norm
-            self.norm_num = self.norm / (L**2 / ngrid**2)
+            self.norm_num = self.norm / (L**2 / ngrid**2) * L
         
         self.H0 = 100. # Hubble parameter -> units will contain "h"
         self.rhomean = 3.*omega_m*self.H0**2/(8.*np.pi*G)
