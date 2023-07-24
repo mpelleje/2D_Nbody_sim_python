@@ -15,6 +15,21 @@ def tesselation2d(ngrid):
     
     return triangles
 
+def triangle_connectivity2d(ngrid):
+    tri0 = np.arange(0, ngrid*ngrid).reshape(ngrid,ngrid)
+    tri1 = np.arange(0, ngrid*ngrid).reshape(ngrid,ngrid) + ngrid*ngrid
+    
+    # neighbors
+    tri0_a = np.roll(tri1, (-1,-1), axis=(0,1)).reshape(-1)
+    tri0_b = np.roll(tri1, -1, axis=0).reshape(-1)
+    tri0_c = np.roll(tri1, -1, axis=1).reshape(-1)
+    tri0 = tri0.reshape(-1)
+    
+    con = np.stack([np.stack((tri0, tri0_a), axis=-1), 
+                    np.stack((tri0, tri0_b), axis=-1), 
+                    np.stack((tri0, tri0_c), axis=-1)], axis=0).reshape(-1,2)
+    return con
+
 def wrap(dx, L):
     return ((dx + L/2.) % L) - L/2.   
 
@@ -132,3 +147,42 @@ def stick_through_idptr(idptr, pos, vel=None, mass=None, L=None, contract_idptr=
         return posstick, velstick, mstick.reshape(mass.shape)
     else:
         return posstick, mstick.reshape(mass.shape)
+    
+def halo_mask_2d(pos, idptr, L=512.):
+    while (np.any(idptr != idptr[idptr])):
+        idptr = idptr[idptr]
+        
+    ngrid = np.int64(np.sqrt(idptr.size))
+    
+    tri = tesselation2d(ngrid)
+    con = triangle_connectivity2d(ngrid)
+    
+    # Build a stream-connectivity Graph
+    
+    parity = triangle_parity(tri, pos, L=L)
+    
+    edge_valid = parity[con[...,0]] == parity[con[...,1]]
+    
+    import networkx as nx
+    G = nx.Graph()
+    for i in range(0, len(tri)):
+        G.add_node(i)
+
+    for e in con[edge_valid]:
+        G.add_edge(e[0], e[1])
+        
+    # Detect for each stream whether it is connected to the boundary
+    boundary_tri = (idptr[tri[...,0]] != idptr[tri[...,1]]) | (idptr[tri[...,0]] != idptr[tri[...,2]])
+    
+    has_boundary = np.zeros(len(tri), dtype=np.bool)
+    for i,c in enumerate(nx.connected_components(G)):
+        tris_in_comp = np.array(list(c))
+        has_boundary[tris_in_comp] = np.max(boundary_tri[tris_in_comp])
+    
+    # Flag each sticky-region that contain a stream not connected to the boundary as halo
+    id_flag = np.unique(idptr[tri[~has_boundary]])
+    mask = np.zeros(ngrid**2, dtype=np.bool)
+    mask[id_flag] = True
+    mask = mask[idptr]
+        
+    return mask
