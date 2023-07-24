@@ -1,6 +1,7 @@
 import numpy as np
 from .ic import get_kmesh
-from ..math import uniform_grid_nd
+from ..math import uniform_grid_nd, tesselation2d, stick_through_idptr
+from ..unfold import unfold2d
 import time
 
 def deposit2d(pos, ngrid, L, mass=1., mode="cic", norm="density"):
@@ -126,6 +127,8 @@ class LoggerCallback(SimulationCallback):
         
         self.ai = []
         self.posi = []
+        self.veli = []
+        self.massi = []
     
     def after_step(self, sim, a0, a1):
         for asnap in self.alog:
@@ -135,12 +138,56 @@ class LoggerCallback(SimulationCallback):
     def add_snapshot(self, sim, a):
         self.ai.append(a)
         self.posi.append(np.copy(sim.pos))
+        self.veli.append(np.copy(sim.vel))
+        self.massi.append(np.copy(sim.mass))
     
     def get_log(self, mode="tx"):
-        return np.array(self.ai), np.array(self.posi)
+        res = []
+        if "t" in mode:
+            res.append(np.array(self.ai))
+        if "x" in mode:
+            res.append(np.array(self.posi))
+        if "v" in mode:
+            res.append(np.array(self.veli))
+        if "m" in mode:
+            res.append(np.array(self.massi))
+        
+        return res
+    
+class StickinessCallback(SimulationCallback):
+    def __init__(self, mode=1):
+        self.initialized = False
+        self.mode = mode
+        
+    def initialize(self, ngrid):
+        self.tri = tesselation2d(ngrid)
+        self.idptr = np.arange(0, ngrid*ngrid)
+        self.initialized = True
+    
+    def after_step(self, sim, a0, a1):
+        ngrid = sim.pos.shape[0]
+        if not self.initialized:
+            self.initialize(ngrid)
+        
+        # Position and masses are stuck together directly
+        pos, mass, self.tri, newidptr = unfold2d(sim.pos, L=sim.ics.L, mass=sim.mass, mode=self.mode, simp=self.tri, output_flat=False)
+        # Velocities we can handle afterwards through knowledge of the idptr
+        pos2,newvel,mass2 = stick_through_idptr(newidptr, sim.pos, vel=sim.vel, mass=sim.mass, L=sim.ics.L, contract_idptr=True)
+        
+        # print(np.max(np.abs(wrap(pos-pos2)[valid])))
+        
+        # newidptr only includes recent stickiness relations
+        # to keep track of the stickiness history we also update a direct idptr
+        self.idptr = newidptr.flat[self.idptr]
+        while(np.any(self.idptr != self.idptr[self.idptr])):
+            self.idptr = self.idptr[self.idptr]
+
+        sim.vel = newvel
+        sim.pos = pos
+        sim.mass = mass
     
 class CosmologicalSimulation2d():
-    def __init__(self, ics, aic=0.05, ngrid_pm=128, dafac_max=0.05, da_max=0.02, callbacks=[],  verbose=1, alog=[]):
+    def __init__(self, ics, aic=0.05, ngrid_pm=128, dafac_max=0.05, da_max=0.02, callbacks=[],  verbose=1, alog=[], sticky=False):
         self.verbose = verbose
         self.ics = ics
         
@@ -156,6 +203,12 @@ class CosmologicalSimulation2d():
             self.callbacks.append(self.logger)
         else:
             self.logger = None
+        
+        if sticky:
+            self.stickiness = StickinessCallback(mode=1)
+            self.callbacks.append(self.stickiness)
+        else:
+            self.stickiness = None
         
         self.dafac_max, self.da_max = dafac_max, da_max
         
@@ -235,3 +288,4 @@ class CosmologicalSimulation2d():
         assert self.logger is not None, "Have not defined any snapshots when creating the simulation"
         
         return self.logger.get_log(mode)
+

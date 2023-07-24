@@ -105,6 +105,7 @@ def massive_segments(mass, tri, pos=None, maxsize=None, forplot=False):
 def stick_through_idptr(idptr, pos, vel=None, mass=None, L=None, contract_idptr=True):
     """Given a distribution of particles and a stickiness relation defined through idptr
     creates the positions, (velocities) and masses of the sticked particles"""
+    idptr = idptr.reshape(-1)
     if contract_idptr:
         while(np.any(idptr != idptr[idptr])):
             idptr = idptr[idptr]
@@ -124,6 +125,8 @@ def stick_through_idptr(idptr, pos, vel=None, mass=None, L=None, contract_idptr=
         
         dx_m = np.bincount(idptr, weights=mass.flatten()*dx[...,i].flatten(), minlength=npart)
         posstick[...,i].flat = pos[...,i].flat + dx_m / np.clip(mstick, 1e-10, None)
+        
+        assert ~np.any(np.isnan(posstick)), "Nans!"
     
     if vel is not None:
         return posstick, velstick, mstick.reshape(mass.shape)

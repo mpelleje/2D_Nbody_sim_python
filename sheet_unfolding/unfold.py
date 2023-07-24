@@ -31,7 +31,7 @@ def unfold2d(pos, L, mass=1., mode=None, simp=None, idptr=None, output_flat=True
     if output_flat:
         return pos_out, mass_out, tri_out, idptr_out
     else:
-        return pos_out.reshape(pos.shape), mass_out.reshape(pos.shape[:-1]), tri, idptr.reshape(pos.shape[:-1])
+        return pos_out.reshape(pos.shape), mass_out.reshape(pos.shape[:-1]), tri_out, idptr_out.reshape(pos.shape[:-1])
     
 def multistep_unfold2d(pos_array, L, mass=1., mode=None, simp=None, idptr=None, output_flat=True):
     """pos_array: an array of particle positions at different times, e.g. shape [nsnap, 128, 128, 2]
