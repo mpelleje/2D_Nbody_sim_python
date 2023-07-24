@@ -15,6 +15,25 @@ def tesselation2d(ngrid):
     
     return triangles
 
+def tesselation3d(ngrid):
+    """Returns Tetraheda (Delaunay) tesselating a uniform grid of ngrid x ngrid particles"""
+    i000 = np.arange(ngrid*ngrid*ngrid).reshape(ngrid,ngrid,ngrid)
+
+    def i(ix,iy,iz):
+        return np.roll(i000, (ix,iy,iz), axis=(0,1,2))
+
+    tet1 = np.stack((i(1, 0, 0), i(0, 0, 0), i(0, 1, 0), i(0, 0, 1)), axis=-1).reshape(-1, 4)
+    tet2 = np.stack((i(0, 1, 0), i(1, 0, 0), i(0, 0, 1), i(0, 1, 1)), axis=-1).reshape(-1, 4)
+    tet3 = np.stack((i(1, 0, 1), i(1, 0, 0), i(0, 1, 1), i(0, 0, 1)), axis=-1).reshape(-1, 4)
+
+    tet4 = np.stack((i(0, 1, 1), i(0, 1, 0), i(1, 0, 0), i(1, 1, 0)), axis=-1).reshape(-1, 4)
+    tet5 = np.stack((i(1, 1, 0), i(1, 0, 0), i(0, 1, 1), i(1, 0, 1)), axis=-1).reshape(-1, 4)
+    tet6 = np.stack((i(1, 1, 1), i(0, 1, 1), i(1, 0, 1), i(1, 1, 0)), axis=-1).reshape(-1, 4)
+
+    tets = np.concatenate((tet1, tet2, tet3, tet4, tet5, tet6), axis=0)
+
+    return tets
+
 def triangle_connectivity2d(ngrid):
     tri0 = np.arange(0, ngrid*ngrid).reshape(ngrid,ngrid)
     tri1 = np.arange(0, ngrid*ngrid).reshape(ngrid,ngrid) + ngrid*ngrid
