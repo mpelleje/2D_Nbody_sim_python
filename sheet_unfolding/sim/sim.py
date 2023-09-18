@@ -1,7 +1,7 @@
 import numpy as np
 from .ic import get_kmesh
 from ..math import uniform_grid_nd, tesselation2d, stick_through_idptr
-from ..unfold import unfold2d
+#from ..unfold import unfold2d
 import time
 
 def deposit2d(pos, ngrid, L, mass=1., mode="cic", norm="density"):
