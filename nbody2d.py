@@ -76,10 +76,12 @@ for i in range(c["drawsteps"]):
         scatter.remove()
     
     scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=2, alpha=0.5, color="black")
-    plt.pause(max(c["framepause"], 1e-5))
     
     if c["outdir"] is not None:
         fig.savefig("%s/image_%04d.png" % (c["outdir"], i))
+        #plt.show()
+    else:
+        plt.pause(max(c["framepause"], 1e-5))
     
 if c["outdir"] is not None:
     print("To create the video, paste the following line:")
