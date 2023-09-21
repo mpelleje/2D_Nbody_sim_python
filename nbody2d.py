@@ -22,11 +22,12 @@ parser.add_argument('-s', '--drawsteps', help="total number of frames displayed"
 parser.add_argument('-a', '--aspectratio', help="frame aspect ratio")
 parser.add_argument('-w', '--width', help="frame width in inches")
 parser.add_argument('-o', '--outdir', help="If set, save images to directory for creating a movie")
+parser.add_argument('-v', '--vismode', help="can be one of 'point', 'tri', 'sheet'")
 parser.add_argument('--no-overlay', action="store_true", help="set to not overlay scalefactor a=...")
 
 args = parser.parse_args()
 
-c = {"npart": 128, "boxsize": 100., "drawsteps": 100, "framepause": 1e-4, "pmgrid":128, "outdir":None, "aic":0.05, "afin":1.0, "da":0.01, "aspectratio":1.5, "width": 10.0, "no_overlay": False}
+c = {"npart": 128, "boxsize": 100., "drawsteps": 100, "framepause": 1e-4, "pmgrid":128, "outdir":None, "aic":0.05, "afin":1.0, "da":0.01, "aspectratio":1.5, "width": 10.0, "no_overlay": False, "vismode": "point"}
 kwargs = vars(args)
 for key in kwargs:
     if kwargs[key] is not None:
@@ -42,6 +43,9 @@ print("Using config", c)
 myic = su.sim.IC2DCosmo(ngrid = c["npart"], L=c["boxsize"], rs = 0.1, norm=2e7)
 
 sim = su.sim.CosmologicalSimulation2d(myic, aic=c["aic"], ngrid_pm=c["pmgrid"], verbose=0, da_max=c["da"], dafac_max=0.05)
+
+if c["vismode"] in ("tri", "sheet"):
+    tri = su.math.tesselation2d(c["npart"])
 
 fig, ax = plt.subplots(1,1, figsize=(c["width"],c["width"]/c["aspectratio"]))
 #plt.tight_layout()
@@ -63,7 +67,7 @@ if c["outdir"] is not None:
     import os
     os.makedirs(c["outdir"], exist_ok=True)
 
-scatter = None
+scatter, trip = None, None
 for i in range(c["drawsteps"]):
     sim.integrate_till(ai[i])
     
@@ -72,10 +76,37 @@ for i in range(c["drawsteps"]):
     if not c["no_overlay"]:
         ax.set_title("a = %.2f" % sim.a, y=1.0, pad=-35, color="blue", fontsize=20)
     
-    if scatter is not None:
-        scatter.remove()
-    
-    scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=2, alpha=0.5, color="black")
+    if c["vismode"] == "point":
+        if scatter is not None:
+            scatter.remove()
+        scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=2, alpha=0.5, color="black")
+    elif c["vismode"] == "tri":
+        if scatter is not None:
+            scatter.remove()
+        scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=2, alpha=0.5, color="blue")
+        
+        if trip is not None:
+            for l in ax.lines:
+                l.remove()
+            #ax.patches[-1].remove()
+        
+        pos = sim.pos[...,0:2].reshape(-1,2) % sim.ics.L
+        trimask = su.math.trimask(pos, tri, maxsize=sim.ics.L * 0.4)
+        trip = ax.triplot(pos[:,0], pos[:,1], tri[trimask], alpha=1.0, linewidth=0.25, color="black")
+        #scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=2, alpha=0.5, color="black")
+    elif c["vismode"] == "sheet":
+        if trip is not None:
+            trip.remove()
+        
+        pos = sim.pos[...,0:2].reshape(-1,2) % sim.ics.L
+        trimask = su.math.trimask(pos, tri, maxsize=sim.ics.L * 0.4)
+
+        vol = su.math.triangle_area(tri, pos, sim.ics.L) / (0.5 * (sim.ics.L / c["npart"])**2)
+        color = 1./np.abs(vol)
+        
+        trip = ax.tripcolor(pos[:,0], pos[:,1], tri[trimask], facecolors=color[trimask], shading="flat", cmap="Greys", vmin=0., vmax=2., alpha=0.25)
+    else:
+        raise ValueError("Unknown vismode: %s" % c["vismode"]) 
     
     if c["outdir"] is not None:
         fig.savefig("%s/image_%04d.png" % (c["outdir"], i))
