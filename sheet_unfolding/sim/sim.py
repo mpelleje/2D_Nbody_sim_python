@@ -9,8 +9,8 @@ def deposit2d(pos, ngrid, L, mass=1., mode="cic", norm="density"):
     
     mass = mass * np.ones(pos.shape[:-1])
     
-    bins = np.linspace(0., L, ngrid+1)
     if mode == "ngp":
+        bins = np.linspace(0., L, ngrid+1)
         rhogrid,_ = np.histogramdd(pos.reshape(-1,2) % L, bins=(bins, bins), weights=mass.reshape(-1))
     elif mode == "cic":
         xred = (pos % L) / (L / ngrid)
@@ -32,7 +32,7 @@ def deposit2d(pos, ngrid, L, mass=1., mode="cic", norm="density"):
     if norm == "sum":
         return rhogrid
     elif norm == "density":
-        dV = (bins[1] - bins[0])**2
+        dV = (L/ngrid)**2
         return rhogrid / dV
     else:
         raise ValuError("Unknown mode for norm: %s" % norm)
@@ -187,11 +187,11 @@ class StickinessCallback(SimulationCallback):
         sim.mass = mass
     
 class CosmologicalSimulation2d():
-    def __init__(self, ics, aic=0.05, ngrid_pm=128, dafac_max=0.05, da_max=0.02, callbacks=[],  verbose=1, alog=[], sticky=False):
+    def __init__(self, ics, aic=0.05, ngrid_pm=128, dafac_max=0.05, da_max=0.02, callbacks=[],  verbose=1, alog=[], sticky=False, depositmode="cic"):
         self.verbose = verbose
         self.ics = ics
         
-        self.potfield = PM2DPotentialField(ngrid=ngrid_pm, L=self.ics.L)
+        self.potfield = PM2DPotentialField(ngrid=ngrid_pm, L=self.ics.L, depositmode=depositmode)
         
         self.pos, self.vel, self.mass = ics.get_particles(mode="xvm", a=aic)
         self.a = aic
