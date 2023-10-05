@@ -75,7 +75,7 @@ done = False
 while not done:
     ai = np.linspace(c["aic"], c["afin"], c["drawsteps"])
     sim = su.sim.CosmologicalSimulation2d(myic, aic=c["aic"], ngrid_pm=c["pmgrid"], verbose=0, da_max=c["da"], dafac_max=0.05)
-
+    tstart = time.time()
 
     for i in range(c["drawsteps"]):
         t0 = time.time()
@@ -141,6 +141,8 @@ while not done:
         
     if not c["repeat"]:
         done = True
+
+    print("Sim finished after total time %.1fs" % (time.time() - tstart))
 
 if c["vismode"] != "none":
     plt.show()
