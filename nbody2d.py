@@ -24,10 +24,11 @@ parser.add_argument('-w', '--width', help="frame width in inches")
 parser.add_argument('-o', '--outdir', help="If set, save images to directory for creating a movie")
 parser.add_argument('-v', '--vismode', help="can be one of 'point', 'tri', 'sheet'")
 parser.add_argument('--no-overlay', action="store_true", help="set to not overlay scalefactor a=...")
+parser.add_argument('-p', '--pointsize', help="The size at which particles are drwan (default 2)")
 
 args = parser.parse_args()
 
-c = {"npart": 128, "boxsize": 100., "drawsteps": 100, "framepause": 1e-4, "pmgrid":128, "outdir":None, "aic":0.05, "afin":1.0, "da":0.01, "aspectratio":1.5, "width": 10.0, "no_overlay": False, "vismode": "point"}
+c = {"npart": 128, "boxsize": 100., "drawsteps": 100, "framepause": 1e-4, "pmgrid":128, "outdir":None, "aic":0.05, "afin":1.0, "da":0.01, "aspectratio":1.5, "width": 10.0, "no_overlay": False, "vismode": "point", "pointsize":2.0}
 kwargs = vars(args)
 for key in kwargs:
     if kwargs[key] is not None:
@@ -79,11 +80,11 @@ for i in range(c["drawsteps"]):
     if c["vismode"] == "point":
         if scatter is not None:
             scatter.remove()
-        scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=2, alpha=0.5, color="black")
+        scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=c["pointsize"], alpha=0.5, color="black")
     elif c["vismode"] == "tri":
         if scatter is not None:
             scatter.remove()
-        scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=2, alpha=0.5, color="blue")
+        scatter = ax.scatter(pos[...,0].flat, pos[...,1].flat, marker=".", s=c["pointsize"], alpha=0.5, color="blue")
         
         if trip is not None:
             for l in ax.lines:
