@@ -32,7 +32,7 @@ def deposit2d(pos, ngrid, L, mass=1., mode="cic", norm="density"):
     if norm == "sum":
         return rhogrid
     elif norm == "density":
-        dV = (bins[1] - bins[0])**2
+        dV = (L/ngrid)**2
         return rhogrid / dV
     else:
         raise ValuError("Unknown mode for norm: %s" % norm)
