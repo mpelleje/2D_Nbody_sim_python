@@ -113,12 +113,30 @@ def power_eisenstein_smoothed(k, rs=None, **kwargs):
     return pk
 
 def power_eisenstein_smoothed_2d(k, rs=None, dimless=False, **kwargs):
-    pk = power_cdm_eisenstein_hu(k) * 2. * k
+    pk = power_cdm_eisenstein_hu(k) / np.pi * k
     if rs is not None:
         pk *= np.exp(-k**2 * rs**2 / 2.)**2
     if dimless:
         return pk * k**2 / (2.*np.pi)
     return pk
+
+def get_sigmaR(R=8.):
+    from scipy.special import spherical_jn
+    
+    def Ws(k, R):
+        return 3.*spherical_jn(1, k * R) / (k*R)
+        #return np.exp(-k**2 * R**2 / 2.)
+
+    def dsigma2_dlnk(k, R=8.):
+        return Ws(k, R=R)**2 * power_eisenstein_smoothed_2d(k, rs=None, dimless=True)
+
+    k = np.logspace(-8,8,1000)
+    lnk = np.log(k)
+    fi = dsigma2_dlnk(k, R=R)
+
+    I = np.sum(0.5*(fi[1:] + fi[:-1]) * (lnk[1:] - lnk[:-1]))
+    
+    return np.sqrt(I)
 
 def get_kmesh(npix, L, real=False):
     ndim = len(npix)
@@ -138,7 +156,7 @@ def get_kmesh(npix, L, real=False):
     return knd
 
 class IC2DCosmo():
-    def __init__(self, ngrid=128, seed=42, L=100., power=power_eisenstein_smoothed_2d, rs=0.5, sig=2., G=43.0071057317063e-10, omega_m=1., norm = None,  **kwargs):
+    def __init__(self, ngrid=128, seed=42, L=100., power=power_eisenstein_smoothed_2d, rs=0.5, sig=None, G=43.0071057317063e-10, omega_m=1., norm = None, sigma8=0.8,  **kwargs):
         """Creates the initial conditions for a 2D cosmological simulations
         
         ngrid : number of particles per dimension
@@ -168,14 +186,21 @@ class IC2DCosmo():
         self.phik = self.modes * np.sqrt(self.power(np.clip(self.kabs, 1e-10, None), rs=rs, **kwargs) / np.clip(self.kabs, 1e-10, None)**4 )
         self.phik[self.kabs <= (2.*np.pi / L * 2.)] = 0. # Set mean always to 0
         
-        if(norm is None):
+        if norm is not None:
+            print("Warning, using explicit norm, but it is recommended to use sigma8 for normalization")
+            self.norm = norm
+            self.norm_num = self.norm / (L**2 / ngrid**2) * L
+        elif sig is not None:
+            print("Warning, using sig to normalize, but it is recommended to use sigma8 for normalization")
             self.norm_num = 1.
             self.norm_num = sig / np.std(self.get_delta())
             
-            self.norm = self.norm_num * L**2 / ngrid**2
-        else:
-            self.norm = norm
+            self.norm = self.norm_num * L**2 / ngrid**2 / L
+        elif sigma8 is not None:
+            self.norm = sigma8/get_sigmaR(8.)
             self.norm_num = self.norm / (L**2 / ngrid**2) * L
+        else:
+            raise ValueError("Have not provided a valid normalization technique")
         
         self.H0 = 100. # Hubble parameter -> units will contain "h"
         self.rhomean = 3.*omega_m*self.H0**2/(8.*np.pi*G)
