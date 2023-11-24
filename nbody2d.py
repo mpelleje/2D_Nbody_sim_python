@@ -43,7 +43,7 @@ for key in kwargs:
 if c["verbose"]:
     print("Using config", c)
 
-myic = su.sim.IC2DCosmo(ngrid = c["npart"], L=c["boxsize"], rs = 0.1, norm=2e7)
+myic = su.sim.IC2DCosmo(ngrid = c["npart"], L=c["boxsize"], rs = 0.1, sigma8=0.8)
 sim = su.sim.CosmologicalSimulation2d(myic, aic=c["aic"], ngrid_pm=c["pmgrid"], verbose=0, da_max=c["da"], dafac_max=0.05)
 
 if not c["vismode"] == "none":
