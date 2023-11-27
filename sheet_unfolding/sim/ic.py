@@ -138,6 +138,17 @@ def get_sigmaR(R=8.):
     
     return np.sqrt(I)
 
+def growth_factor(a,  Om=1.0, Olam=0.):
+    from scipy.integrate import quad
+    
+    def hubble(a, H0,  Om, Olam):
+        return H0*np.sqrt(Olam+Om*a**-3)
+    
+    def gfac(ai):
+        return 5.*Om/2.*hubble(ai, 1,  Om, Olam)*quad(lambda b: (b*hubble(b, 1, Om, Olam,))**(-3.), 0, ai)[0]
+    
+    return gfac(a)
+
 def get_kmesh(npix, L, real=False):
     ndim = len(npix)
 
@@ -156,7 +167,7 @@ def get_kmesh(npix, L, real=False):
     return knd
 
 class IC2DCosmo():
-    def __init__(self, ngrid=128, seed=42, L=100., power=power_eisenstein_smoothed_2d, rs=0.5, sig=None, G=43.0071057317063e-10, omega_m=1., norm = None, sigma8=0.8,  **kwargs):
+    def __init__(self, ngrid=128, seed=42, L=100., power=power_eisenstein_smoothed_2d, rs=0.5, sig=None, G=43.0071057317063e-10, omega_m=1., omega_l=0., norm = None, sigma8=0.8,  **kwargs):
         """Creates the initial conditions for a 2D cosmological simulations
         
         ngrid : number of particles per dimension
@@ -175,7 +186,7 @@ class IC2DCosmo():
         
         self.ki = get_kmesh((ngrid, ngrid), L)
         
-        assert omega_m == 1., "Non EdS has not been properly implemented"
+        #assert omega_m == 1., "Non EdS has not been properly implemented"
 
         self.modes = create_modes(npix=ngrid, ndim=2)
         
@@ -203,21 +214,27 @@ class IC2DCosmo():
             raise ValueError("Have not provided a valid normalization technique")
         
         self.H0 = 100. # Hubble parameter -> units will contain "h"
-        self.rhomean = 3.*omega_m*self.H0**2/(8.*np.pi*G)
+        self.Omega_m = omega_m
+        self.Omega_l = omega_l
+        self.rhomean = 3.*self.Omega_m*self.H0**2/(8.*np.pi*G)
         self.mass = np.ones((ngrid,ngrid), dtype=np.float64)* (self.rhomean*L**2) / ngrid**2
+        
+    def Dgrowth(self, a):
+        """growth factor normalized to 1 at a=1"""
+        return growth_factor(a, Om=self.Omega_m, Olam=self.Omega_l) / growth_factor(1., Om=self.Omega_m, Olam=self.Omega_l)
             
     def get_phi(self, a=1.):
-        return self.norm_num * np.real(np.fft.ifftn(self.phik))
+        return self.norm_num * np.real(np.fft.ifftn(self.phik)) * self.Dgrowth(a)
     def get_delta(self, a=1.):
-        return a * self.norm_num * np.real(np.fft.ifftn(-self.phik * self.kabs**2))
+        return self.norm_num * np.real(np.fft.ifftn(-self.phik * self.kabs**2)) * self.Dgrowth(a)
     def get_s(self, a=1):
-        return self.norm_num * np.real(np.fft.ifftn((- self.phik * 1j)[...,np.newaxis] * self.ki, axes=(0,1))) * a
+        return self.norm_num * np.real(np.fft.ifftn((- self.phik * 1j)[...,np.newaxis] * self.ki, axes=(0,1))) * self.Dgrowth(a)
     def get_H(self, a=1.):
-        return self.norm_num * np.real(np.fft.ifftn((- self.phik)[...,np.newaxis,np.newaxis] * self.ki[...,np.newaxis,:]* self.ki[...,:,np.newaxis], axes=(0,1))) * a
+        return self.norm_num * np.real(np.fft.ifftn((- self.phik)[...,np.newaxis,np.newaxis] * self.ki[...,np.newaxis,:]* self.ki[...,:,np.newaxis], axes=(0,1))) * self.Dgrowth(a)
     def get_x(self, a = 1.0):
         return (self.qi + self.get_s(a=a)) % self.L
     def hubble(self, a = 1.):
-        return 100.* a**(-3./2.)
+        return 100.* np.sqrt(self.Omega_m * a**-3 + self.Omega_l)
     def get_v(self, a = 1.0):
         return self.get_s(a=a) * self.hubble(a) * a**2
     def get_particles(self, mode="xvm", a=1.):

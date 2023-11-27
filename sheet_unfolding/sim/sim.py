@@ -188,6 +188,7 @@ class StickinessCallback(SimulationCallback):
     
 class CosmologicalSimulation2d():
     def __init__(self, ics, aic=0.05, ngrid_pm=128, dafac_max=0.05, da_max=0.02, callbacks=[],  verbose=1, alog=[], sticky=False, depositmode="cic"):
+
         self.verbose = verbose
         self.ics = ics
         
@@ -212,8 +213,8 @@ class CosmologicalSimulation2d():
         
         self.dafac_max, self.da_max = dafac_max, da_max
         
-        self.Omega_m = 1.0
-        self.Omega_l = 0.0
+        self.Omega_m = self.ics.Omega_m
+        self.Omega_l = self.ics.Omega_l
         
         self.acc = None
 
