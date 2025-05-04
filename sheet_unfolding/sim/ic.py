@@ -8,12 +8,12 @@ def create_modes(npix=256, ndim=3):
     this ensures consistency of random modes accross different resolutions
     """
     
-    fmodes_k    = np.zeros([npix]*ndim, dtype=np.complex)
+    fmodes_k    = np.zeros([npix]*ndim, dtype=np.complex128)
     
     kinorm = np.fft.fftfreq(npix)
     vknorm = np.array(np.meshgrid(*[kinorm]*ndim, indexing='ij')).astype("f4")
 
-    maxlvl = np.int(np.log2(npix))
+    maxlvl = np.int64(np.log2(npix))
     assert (2**maxlvl == npix), "Only powers of two allowed for npix"
     
     selected = np.zeros(vknorm.shape[1:], dtype=bool)
