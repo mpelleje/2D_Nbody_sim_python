@@ -51,7 +51,8 @@ def fourier_solve_poisson2d(rho, L, G=43.0071057317063e-10, deconv_cic = False):
     if(deconv_cic):
         kred = ki*L / (2.*phik.shape[0])
         kred[np.abs(kred) < 1e-10] = 1e-10
-        phik /= np.clip(np.product((np.sin(kred)/kred)**2, axis=-1), 0., 1)
+        # phik /= np.clip(np.product((np.sin(kred)/kred)**2, axis=-1), 0., 1)
+        phik /= np.clip(np.prod((np.sin(kred)/kred)**2, axis=-1), 0., 1)
 
     phigrid = np.fft.irfftn(phik)
     accgrid = np.fft.irfftn(-phik[...,np.newaxis] * 1j* ki, axes=(0,1))
