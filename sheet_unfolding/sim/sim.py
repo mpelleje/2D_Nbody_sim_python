@@ -1,7 +1,7 @@
 import numpy as np
 from .ic import get_kmesh
 from ..math import uniform_grid_nd, tesselation2d, stick_through_idptr
-from ..unfold import unfold2d
+#from ..unfold import unfold2d
 import time
 
 def deposit2d(pos, ngrid, L, mass=1., mode="cic", norm="density"):
@@ -9,8 +9,8 @@ def deposit2d(pos, ngrid, L, mass=1., mode="cic", norm="density"):
     
     mass = mass * np.ones(pos.shape[:-1])
     
-    bins = np.linspace(0., L, ngrid+1)
     if mode == "ngp":
+        bins = np.linspace(0., L, ngrid+1)
         rhogrid,_ = np.histogramdd(pos.reshape(-1,2) % L, bins=(bins, bins), weights=mass.reshape(-1))
     elif mode == "cic":
         xred = (pos % L) / (L / ngrid)
@@ -51,7 +51,8 @@ def fourier_solve_poisson2d(rho, L, G=43.0071057317063e-10, deconv_cic = False):
     if(deconv_cic):
         kred = ki*L / (2.*phik.shape[0])
         kred[np.abs(kred) < 1e-10] = 1e-10
-        phik /= np.clip(np.product((np.sin(kred)/kred)**2, axis=-1), 0., 1)
+        # phik /= np.clip(np.product((np.sin(kred)/kred)**2, axis=-1), 0., 1)
+        phik /= np.clip(np.prod((np.sin(kred)/kred)**2, axis=-1), 0., 1)
 
     phigrid = np.fft.irfftn(phik)
     accgrid = np.fft.irfftn(-phik[...,np.newaxis] * 1j* ki, axes=(0,1))
@@ -187,11 +188,12 @@ class StickinessCallback(SimulationCallback):
         sim.mass = mass
     
 class CosmologicalSimulation2d():
-    def __init__(self, ics, aic=0.05, ngrid_pm=128, dafac_max=0.05, da_max=0.02, callbacks=[],  verbose=1, alog=[], sticky=False):
+    def __init__(self, ics, aic=0.05, ngrid_pm=128, dafac_max=0.05, da_max=0.02, callbacks=[],  verbose=1, alog=[], sticky=False, depositmode="cic"):
+
         self.verbose = verbose
         self.ics = ics
         
-        self.potfield = PM2DPotentialField(ngrid=ngrid_pm, L=self.ics.L)
+        self.potfield = PM2DPotentialField(ngrid=ngrid_pm, L=self.ics.L, depositmode=depositmode)
         
         self.pos, self.vel, self.mass = ics.get_particles(mode="xvm", a=aic)
         self.a = aic
@@ -212,8 +214,8 @@ class CosmologicalSimulation2d():
         
         self.dafac_max, self.da_max = dafac_max, da_max
         
-        self.Omega_m = 1.0
-        self.Omega_l = 0.0
+        self.Omega_m = self.ics.Omega_m
+        self.Omega_l = self.ics.Omega_l
         
         self.acc = None
 
